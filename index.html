@@ -1,0 +1,1682 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>食品标签包装审核助手</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --primary-light: #dbeafe;
+            --success: #16a34a;
+            --warning: #ea580c;
+            --danger: #dc2626;
+            --info: #0891b2;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --bg-light: #f9fafb;
+            --bg-white: #ffffff;
+            --border-color: #e5e7eb;
+            --shadow: 0 1px 3px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+        }
+
+        html, body {
+            height: 100%;
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-primary);
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .header h1 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0;
+            border-bottom: 2px solid var(--border-color);
+            background: var(--bg-white);
+            padding: 0 1.5rem;
+        }
+
+        .tab-btn {
+            padding: 1rem 1.5rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.3s ease;
+        }
+
+        .tab-btn:hover {
+            color: var(--primary);
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .content-wrapper {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .tab-content {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .pre-scan-banner {
+            background: #9333ea;
+            color: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+            display: none;
+            animation: slideDown 0.3s ease;
+        }
+
+        .pre-scan-banner.show {
+            display: block;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .tab-content.label-review {
+            flex-direction: row;
+            gap: 2rem;
+        }
+
+        .form-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .image-preview-section {
+            width: 300px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--primary);
+            border-radius: 0.5rem;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--primary-light);
+            margin-bottom: 1rem;
+        }
+
+        .upload-area:hover {
+            background: #bfdbfe;
+        }
+
+        .upload-area.drag-over {
+            background: #93c5fd;
+            border-color: var(--primary-dark);
+        }
+
+        .upload-area input {
+            display: none;
+        }
+
+        .upload-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .image-preview {
+            width: 100%;
+            height: 300px;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            overflow: hidden;
+            background: var(--bg-white);
+            display: none;
+        }
+
+        .image-preview.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .image-preview img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.375rem;
+            font-family: inherit;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+        }
+
+        .checkbox-item input {
+            width: auto;
+            margin-right: 0.5rem;
+            cursor: pointer;
+        }
+
+        .checkbox-item label {
+            margin: 0;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .radio-item {
+            display: flex;
+            align-items: center;
+        }
+
+        .radio-item input {
+            width: auto;
+            margin-right: 0.5rem;
+            cursor: pointer;
+        }
+
+        .radio-item label {
+            margin: 0;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.375rem;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-secondary {
+            background: var(--bg-light);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+        }
+
+        .results {
+            margin-top: 2rem;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .findings {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .finding-card {
+            background: var(--bg-white);
+            border-left: 4px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            box-shadow: var(--shadow);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(-20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .finding-card.danger {
+            border-left-color: var(--danger);
+            background: #fef2f2;
+        }
+
+        .finding-card.warning {
+            border-left-color: var(--warning);
+            background: #fffbeb;
+        }
+
+        .finding-card.success {
+            border-left-color: var(--success);
+            background: #f0fdf4;
+        }
+
+        .finding-card.info {
+            border-left-color: var(--info);
+            background: #f0f9fa;
+        }
+
+        .finding-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .badge-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .badge-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .badge-info {
+            background: var(--info);
+            color: white;
+        }
+
+        .badge-secondary {
+            background: #e5e7eb;
+            color: var(--text-primary);
+        }
+
+        .finding-title {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .finding-content {
+            margin-bottom: 0.75rem;
+        }
+
+        .finding-description {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .finding-meta {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.75rem;
+        }
+
+        .finding-meta-item {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .finding-meta-item strong {
+            color: var(--text-primary);
+        }
+
+        .finding-suggestion {
+            padding: 0.75rem;
+            background: rgba(0,0,0,0.05);
+            border-radius: 0.375rem;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--bg-white);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            box-shadow: var(--shadow);
+        }
+
+        .stat-number {
+            font-size: 1.875rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        @media print {
+            .tabs, .header, .button-group {
+                display: none;
+            }
+
+            .tab-content {
+                padding: 0;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .tab-content.label-review {
+                flex-direction: column;
+            }
+
+            .image-preview-section {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .tab-content {
+                padding: 1rem;
+            }
+
+            .tabs {
+                padding: 0;
+                overflow-x: auto;
+            }
+
+            .tab-btn {
+                padding: 1rem;
+                white-space: nowrap;
+            }
+
+            .summary-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .help-content {
+            max-width: 900px;
+        }
+
+        .help-section {
+            margin-bottom: 2rem;
+        }
+
+        .help-section h3 {
+            color: var(--primary);
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+        }
+
+        .help-section p {
+            line-height: 1.6;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        .help-list {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .help-list li {
+            padding-left: 1.5rem;
+            margin-bottom: 0.5rem;
+            position: relative;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .help-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: var(--success);
+            font-weight: bold;
+        }
+
+        .rule-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .rule-card {
+            background: var(--bg-white);
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            border-left: 4px solid var(--primary);
+            box-shadow: var(--shadow);
+        }
+
+        .rule-card h4 {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .rule-card p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .sticky-image {
+            position: sticky;
+            top: 0;
+        }
+
+        @media (max-width: 768px) {
+            .sticky-image {
+                position: static;
+            }
+        }
+
+        .standard-hint {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏷️ 食品标签包装审核助手</h1>
+        <p>基于GB 7718-2025 和 GB 28050-2025 标准的智能审核工具</p>
+    </div>
+
+    <div class="container">
+        <div class="content-wrapper">
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('label-review')">标签审核</button>
+                <button class="tab-btn" onclick="switchTab('packaging-review')">包装审核</button>
+                <button class="tab-btn" onclick="switchTab('help')">使用说明</button>
+            </div>
+
+            <!-- Tab 1: Label Review -->
+            <div id="label-review" class="tab-content label-review active">
+                <div class="pre-scan-banner" id="preScanBanner">
+                    ⚠️ 预扫雷模式：未选择标准，仅做预扫雷，不输出正式审核结论
+                </div>
+
+                <div class="form-section">
+                    <div class="form-group">
+                        <label>品名 *</label>
+                        <input type="text" id="productName" placeholder="如：芒果果酱">
+                    </div>
+
+                    <div class="form-group">
+                        <label>配料表 *</label>
+                        <textarea id="ingredients" placeholder="如：芒果、白砂糖、柠檬酸、..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>营养成分表 *</label>
+                        <textarea id="nutritionTable" placeholder="如：每100g含：能量 180kJ，蛋白质 0.5g，..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>正面卖点/声称</label>
+                        <input type="text" id="frontClaims" placeholder="如：0添加、不含防腐剂">
+                    </div>
+
+                    <div class="form-group">
+                        <label>详情页文案</label>
+                        <textarea id="detailCopy" placeholder="产品详情页的宣传文案"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>产品执行标准</label>
+                        <input type="text" id="executionStandard" placeholder="如：GB/T 25000-2012">
+                    </div>
+
+                    <div class="form-group">
+                        <label>适用标准 *</label>
+                        <div class="standard-hint">不勾选标准 = 仅做预扫雷，不输出正式审核结论</div>
+                        <div class="checkbox-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="std7718" name="standards" value="GB7718">
+                                <label for="std7718">GB 7718-2025（预包装食品标签通则）</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="std28050" name="standards" value="GB28050">
+                                <label for="std28050">GB 28050-2025（预包装食品营养标签通则）</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>输出格式</label>
+                        <div class="radio-group">
+                            <div class="radio-item">
+                                <input type="radio" id="format-pro" name="outputFormat" value="professional" checked>
+                                <label for="format-pro">专业审核版（含详细规则）</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="format-biz" name="outputFormat" value="business">
+                                <label for="format-biz">业务简版</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="format-rectify" name="outputFormat" value="rectify">
+                                <label for="format-rectify">整改台账版</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn btn-primary" onclick="reviewLabel()">审核标签</button>
+                        <button class="btn btn-secondary btn-sm" onclick="fillLabelDemo()">填入示例</button>
+                        <button class="btn btn-secondary btn-sm" onclick="clearLabelForm()">清空</button>
+                    </div>
+                </div>
+
+                <div class="image-preview-section">
+                    <div class="upload-area" id="uploadArea" onmouseover="this.classList.add('drag-over')" onmouseout="this.classList.remove('drag-over')">
+                        <div class="upload-icon">📸</div>
+                        <div>点击上传或拖放标签图片</div>
+                        <div style="font-size: 0.85rem; color: #666; margin-top: 0.5rem;">支持 JPG, PNG</div>
+                        <input type="file" id="imageInput" accept="image/*" onchange="handleImageUpload(event)">
+                    </div>
+                    <div class="image-preview sticky-image" id="imagePreview"></div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Packaging Review -->
+            <div id="packaging-review" class="tab-content">
+                <div class="pre-scan-banner" id="preScanBannerPkg">
+                    ⚠️ 预扫雷模式：未选择标准，仅做预扫雷
+                </div>
+
+                <div class="form-section">
+                    <div class="form-group">
+                        <label>产品名称 *</label>
+                        <input type="text" id="pkgProductName" placeholder="如：芒果果酱">
+                    </div>
+
+                    <div class="form-group">
+                        <label>包装类型 *</label>
+                        <select id="pkgType">
+                            <option value="">请选择</option>
+                            <option value="纸盒">纸盒</option>
+                            <option value="塑料袋">塑料袋</option>
+                            <option value="玻璃瓶">玻璃瓶</option>
+                            <option value="金属罐">金属罐</option>
+                            <option value="复合包装">复合包装</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>净含量标示</label>
+                        <input type="text" id="netContent" placeholder="如：200g">
+                    </div>
+
+                    <div class="form-group">
+                        <label>生产日期标示方式</label>
+                        <input type="text" id="productionDateFormat" placeholder="如：2026年3月18日 或 20260318">
+                    </div>
+
+                    <div class="form-group">
+                        <label>保质期/保质期到期日</label>
+                        <input type="text" id="shelfLife" placeholder="如：12个月 或 2027年3月18日">
+                    </div>
+
+                    <div class="form-group">
+                        <label>贮存条件</label>
+                        <input type="text" id="storageConditions" placeholder="如：常温、阴凉干燥处保存">
+                    </div>
+
+                    <div class="form-group">
+                        <label>生产者名称 *</label>
+                        <input type="text" id="producerName" placeholder="如：某食品有限公司">
+                    </div>
+
+                    <div class="form-group">
+                        <label>生产者地址 *</label>
+                        <input type="text" id="producerAddress" placeholder="如：北京市朝阳区XX街XX号">
+                    </div>
+
+                    <div class="form-group">
+                        <label>联系方式</label>
+                        <input type="text" id="contactInfo" placeholder="如：010-12345678 或 400-800-8888">
+                    </div>
+
+                    <div class="form-group">
+                        <label>食品生产许可证编号 (SC开头) *</label>
+                        <input type="text" id="scNumber" placeholder="如：SC12345678901234">
+                    </div>
+
+                    <div class="form-group">
+                        <label>产品标准代号 *</label>
+                        <input type="text" id="standardCode" placeholder="如：GB/T 25000-2012">
+                    </div>
+
+                    <div class="form-group">
+                        <label>产品质量等级（可选）</label>
+                        <input type="text" id="qualityGrade" placeholder="如：优级、特级">
+                    </div>
+
+                    <div class="form-group">
+                        <label>条码（可选）</label>
+                        <input type="text" id="barcode" placeholder="如：6930000000000">
+                    </div>
+
+                    <div class="form-group">
+                        <label>净含量与食品名称是否在同一展示版面</label>
+                        <div class="radio-group">
+                            <div class="radio-item">
+                                <input type="radio" name="contentOnSameSurface" value="yes">
+                                <label>是</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" name="contentOnSameSurface" value="no">
+                                <label>否</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>包装最大表面面积估算</label>
+                        <select id="maxSurfaceArea">
+                            <option value="">请选择</option>
+                            <option value="20">≤20cm²</option>
+                            <option value="40">≤40cm²</option>
+                            <option value="60">≤60cm²</option>
+                            <option value="999">＞60cm²</option>
+                        </select>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn btn-primary" onclick="reviewPackaging()">审核包装</button>
+                        <button class="btn btn-secondary btn-sm" onclick="fillPackagingDemo()">填入示例</button>
+                        <button class="btn btn-secondary btn-sm" onclick="clearPackagingForm()">清空</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: Help -->
+            <div id="help" class="tab-content">
+                <div class="help-content">
+                    <div class="help-section">
+                        <h3>📖 工具介绍</h3>
+                        <p>本工具是一款基于最新食品标签包装标准（GB 7718-2025、GB 28050-2025）的智能审核工具，帮助食品企业、品牌方快速检查和诊断标签包装合规性问题。</p>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>🎯 适用范围</h3>
+                        <ul class="help-list">
+                            <li>预包装食品标签（背面配料表、营养成分表等）</li>
+                            <li>包装上的法定标识（生产者信息、SC编号、标准代号等）</li>
+                            <li>正面宣传声称（营养声称、功能声称等）</li>
+                            <li>不适用于散装食品、餐饮外卖等非预包装食品</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>✅ 主要功能</h3>
+                        <ul class="help-list">
+                            <li><strong>标签审核</strong>：检查配料表、营养成分表、成分声称等合规性</li>
+                            <li><strong>包装审核</strong>：验证生产者信息、SC编号、标准代号等法定标识</li>
+                            <li><strong>多格式输出</strong>：支持专业版、简版、整改台账等输出格式</li>
+                            <li><strong>图片参考</strong>：上传标签图片，边审核边对照</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>📋 覆盖的规则</h3>
+                        <div class="rule-grid">
+                            <div class="rule-card">
+                                <h4>名称规范 (4.2)</h4>
+                                <p>检查产品名称是否真实反映食品属性，风味名称与配料是否匹配。</p>
+                            </div>
+                            <div class="rule-card">
+                                <h4>配料表 (4.3)</h4>
+                                <p>验证配料按质量降序排列、复合配料展开、添加剂使用GB2760名称。</p>
+                            </div>
+                            <div class="rule-card">
+                                <h4>成分定量标示 (4.4)</h4>
+                                <p>强调成分需标示百分比，检查禁用表述如"不添加"、"零添加"。</p>
+                            </div>
+                            <div class="rule-card">
+                                <h4>过敏原信息 (4.12)</h4>
+                                <p>识别8大过敏原（麦、甲壳类、鱼、蛋、花生、大豆、乳制品、坚果）。</p>
+                            </div>
+                            <div class="rule-card">
+                                <h4>营养标签 (GB 28050)</h4>
+                                <p>验证7项必选营养成分、营养声称准确性、儿童警示语。</p>
+                            </div>
+                            <div class="rule-card">
+                                <h4>法定标识 (4.5-4.11)</h4>
+                                <p>检查净含量、生产日期、SC编号、标准代号等必填项。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>🚨 风险等级说明</h3>
+                        <ul class="help-list">
+                            <li><span style="color: #dc2626; font-weight: bold;">●</span> <strong>高风险</strong>：违反强制性规定，直接违法</li>
+                            <li><span style="color: #ea580c; font-weight: bold;">●</span> <strong>中风险</strong>：可能存在问题，需进一步核实</li>
+                            <li><span style="color: #16a34a; font-weight: bold;">●</span> <strong>低风险</strong>：建议改进的地方</li>
+                            <li><span style="color: #0891b2; font-weight: bold;">●</span> <strong>提示</strong>：信息性提示</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>⚠️ 重要说明</h3>
+                        <ul class="help-list">
+                            <li>本工具基于最新标准（2025版）进行规则判断</li>
+                            <li>预扫雷模式：不勾选标准时仅做初步扫描，不输出正式结论</li>
+                            <li>某些规则基于文本分析，可能存在漏报或误报</li>
+                            <li>最终审核结论应由专业人士或企业相关部门确认</li>
+                            <li>本工具不涉及食品安全、质量、功效等实质性审查</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>💡 使用建议</h3>
+                        <ul class="help-list">
+                            <li>上传产品标签高清图片，对照图片与输入信息核对</li>
+                            <li>配料表、营养成分表请完整输入，避免简写或省略</li>
+                            <li>针对高风险项目，应查阅标准原文或咨询专业人士</li>
+                            <li>新产品发布前建议进行完整审核</li>
+                            <li>定期审核已上市产品，关注标准更新</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results" id="results" style="display: none;">
+                <div id="summaryStats" class="summary-stats"></div>
+                <div id="findings" class="findings"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== Utility Functions ====================
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+
+            document.getElementById('results').style.display = 'none';
+        }
+
+        function scrollToResults() {
+            setTimeout(() => {
+                document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        }
+
+        // ==================== Image Upload ====================
+        const uploadArea = document.getElementById('uploadArea');
+        const imageInput = document.getElementById('imageInput');
+        const imagePreview = document.getElementById('imagePreview');
+
+        uploadArea.addEventListener('click', () => imageInput.click());
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('drag-over');
+        });
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('drag-over');
+        });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+            handleImageUpload({ target: { files: e.dataTransfer.files } });
+        });
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imagePreview.innerHTML = `<img src="${e.target.result}" alt="标签图片">`;
+                    imagePreview.classList.add('show');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // ==================== Demo Data ====================
+        function fillLabelDemo() {
+            document.getElementById('productName').value = '芒果果酱';
+            document.getElementById('ingredients').value = '芒果（85%）、白砂糖、柠檬酸、凝胶剂（果胶）';
+            document.getElementById('nutritionTable').value = '每100g：能量 180kJ、蛋白质 0.5g、脂肪 0.1g、饱和脂肪 0g、反式脂肪酸 0g、碳水化合物 43g、糖 35g、钠 10mg';
+            document.getElementById('frontClaims').value = '无防腐剂、无人工香料';
+            document.getElementById('detailCopy').value = '采用新鲜芒果制造，不添加任何防腐剂，100%天然果酱。';
+            document.getElementById('executionStandard').value = 'GB/T 25000-2012';
+            document.getElementById('std7718').checked = true;
+            document.getElementById('std28050').checked = true;
+        }
+
+        function clearLabelForm() {
+            document.getElementById('productName').value = '';
+            document.getElementById('ingredients').value = '';
+            document.getElementById('nutritionTable').value = '';
+            document.getElementById('frontClaims').value = '';
+            document.getElementById('detailCopy').value = '';
+            document.getElementById('executionStandard').value = '';
+            document.getElementById('std7718').checked = false;
+            document.getElementById('std28050').checked = false;
+            document.getElementById('imagePreview').classList.remove('show');
+            document.getElementById('imageInput').value = '';
+            document.getElementById('results').style.display = 'none';
+        }
+
+        function fillPackagingDemo() {
+            document.getElementById('pkgProductName').value = '芒果果酱';
+            document.getElementById('pkgType').value = '玻璃瓶';
+            document.getElementById('netContent').value = '200g';
+            document.getElementById('productionDateFormat').value = '2026年3月18日';
+            document.getElementById('shelfLife').value = '18个月';
+            document.getElementById('storageConditions').value = '常温、阴凉干燥处保存，避免阳光直射';
+            document.getElementById('producerName').value = '某食品有限公司';
+            document.getElementById('producerAddress').value = '北京市朝阳区XX街XX号';
+            document.getElementById('contactInfo').value = '400-800-8888';
+            document.getElementById('scNumber').value = 'SC12345678901234';
+            document.getElementById('standardCode').value = 'GB/T 25000-2012';
+            document.getElementById('qualityGrade').value = '一级';
+            document.getElementById('barcode').value = '6930000000000';
+            document.querySelector('input[name="contentOnSameSurface"][value="yes"]').checked = true;
+            document.getElementById('maxSurfaceArea').value = '999';
+        }
+
+        function clearPackagingForm() {
+            document.getElementById('pkgProductName').value = '';
+            document.getElementById('pkgType').value = '';
+            document.getElementById('netContent').value = '';
+            document.getElementById('productionDateFormat').value = '';
+            document.getElementById('shelfLife').value = '';
+            document.getElementById('storageConditions').value = '';
+            document.getElementById('producerName').value = '';
+            document.getElementById('producerAddress').value = '';
+            document.getElementById('contactInfo').value = '';
+            document.getElementById('scNumber').value = '';
+            document.getElementById('standardCode').value = '';
+            document.getElementById('qualityGrade').value = '';
+            document.getElementById('barcode').value = '';
+            document.querySelector('input[name="contentOnSameSurface"][value="yes"]').checked = false;
+            document.getElementById('maxSurfaceArea').value = '';
+            document.getElementById('results').style.display = 'none';
+        }
+
+        // ==================== Rule Engine ====================
+
+        // Allergen data
+        const ALLERGENS = {
+            gluten: ['小麦', '黑麦', '大麦', '燕麦', '斯佩尔特小麦'],
+            crustacean: ['虾', '龙虾', '蟹'],
+            fish: ['鱼'],
+            egg: ['蛋', '鸡蛋', '蛋黄', '蛋白', '蛋清', '蛋液', '蛋粉'],
+            peanut: ['花生'],
+            soy: ['大豆', '豆粉', '豆油', '豆浆', '豆腐', '酱油', '豆瓣'],
+            dairy: ['牛奶', '牛乳', '奶', '乳', '奶粉', '乳粉', '奶油', '黄油', '干酪', '乳清', '酪蛋白', '炼乳', '乳糖'],
+            treenut: ['杏仁', '腰果', '核桃', '榛子', '开心果', '松子', '板栗', '巴旦木']
+        };
+
+        const ALLERGEN_EXEMPTIONS = [
+            '精炼大豆油', '精炼花生油', '大豆肽', '淀粉', '葡萄糖浆', '高果糖浆', '精炼鱼油', '乳糖'
+        ];
+
+        const BANNED_EXPRESSIONS = [
+            '0添加', '零添加', '无添加', '不添加', '未添加', '没加', '没用', '没使', '没使用', '未用'
+        ];
+
+        class ReviewFinding {
+            constructor(ruleId, title, description, riskLevel, certainty, standard, suggestion) {
+                this.ruleId = ruleId;
+                this.title = title;
+                this.description = description;
+                this.riskLevel = riskLevel; // 'danger', 'warning', 'success', 'info'
+                this.certainty = certainty; // '事实', '规则判断', '待确认'
+                this.standard = standard;
+                this.suggestion = suggestion;
+            }
+        }
+
+        // Text quality checks
+        function checkTextQuality(text) {
+            const findings = [];
+
+            // Duplicate punctuation
+            if (/，，|、、|。。|;;|::/.test(text)) {
+                findings.push(new ReviewFinding(
+                    '7718_TXT_01',
+                    '重复标点符号',
+                    '检测到重复的标点符号',
+                    'warning',
+                    '事实',
+                    'GB 7718-2025',
+                    '删除重复的标点符号，确保排版规范'
+                ));
+            }
+
+            // Bracket matching
+            const openBrackets = (text.match(/[（【【【{【\[]/g) || []).length;
+            const closeBrackets = (text.match(/[）】】】}】\]]/g) || []).length;
+            if (openBrackets !== closeBrackets) {
+                findings.push(new ReviewFinding(
+                    '7718_TXT_02',
+                    '括号不匹配',
+                    '括号数量不对等',
+                    'warning',
+                    '事实',
+                    'GB 7718-2025',
+                    '检查并修正括号的开闭'
+                ));
+            }
+
+            // Common typos
+            const typos = [
+                { pattern: /防腐济/g, fix: '防腐剂' },
+                { pattern: /添加济/g, fix: '添加剂' },
+                { pattern: /营养成份/g, fix: '营养成分' },
+                { pattern: /千焦耳/g, fix: '千焦' },
+                { pattern: /碳水化和物/g, fix: '碳水化合物' },
+                { pattern: /蛋白制/g, fix: '蛋白质' }
+            ];
+
+            typos.forEach(({pattern, fix}) => {
+                if (pattern.test(text)) {
+                    findings.push(new ReviewFinding(
+                        '7718_TXT_03',
+                        '文本中存在常见错别字',
+                        `"${pattern.source.slice(0, -2)}" 应改为 "${fix}"`,
+                        'info',
+                        '事实',
+                        'GB 7718-2025',
+                        `将文本中的"${pattern.source.slice(0, -2)}"改为"${fix}"`
+                    ));
+                }
+            });
+
+            return findings;
+        }
+
+        // Name checks
+        function checkProductName(name, ingredients) {
+            const findings = [];
+
+            if (!name || name.trim().length === 0) {
+                findings.push(new ReviewFinding(
+                    '7718_NAME_01',
+                    '品名缺失',
+                    '未提供产品名称',
+                    'danger',
+                    '事实',
+                    'GB 7718-2025 4.2.1',
+                    '必须提供完整的产品名称'
+                ));
+            }
+
+            // Flavor check
+            if (/(味|风味|口味)/.test(name)) {
+                const hasRealSource = /(芒果|草莓|蓝莓|香蕉|苹果|橙|柠檬|葡萄|樱桃|蜜桃|山楂|番茄|黄瓜)/.test(ingredients);
+                const onlyAroma = /香精/.test(ingredients) && !hasRealSource;
+
+                if (onlyAroma) {
+                    findings.push(new ReviewFinding(
+                        '7718_NAME_02',
+                        '风味名称与配料不符',
+                        `产品名称含有"${name.match(/(味|风味|口味)/)[0]}"，但配料表中仅有香精，无该风味的真实原料`,
+                        'danger',
+                        '规则判断',
+                        'GB 7718-2025 4.4.1.2',
+                        '风味名称应与配料表中的真实原料对应，如仅使用香精，不应强调风味名称'
+                    ));
+                }
+            }
+
+            return findings;
+        }
+
+        // Ingredient checks
+        function checkIngredients(ingredients) {
+            const findings = [];
+
+            if (!ingredients || ingredients.trim().length === 0) {
+                findings.push(new ReviewFinding(
+                    '7718_ING_01',
+                    '配料表缺失',
+                    '未提供配料表信息',
+                    'danger',
+                    '事实',
+                    'GB 7718-2025 4.3',
+                    '必须提供完整的配料表，按质量降序排列'
+                ));
+                return findings;
+            }
+
+            // Check for banned expressions
+            BANNED_EXPRESSIONS.forEach(expr => {
+                if (new RegExp(expr).test(ingredients)) {
+                    findings.push(new ReviewFinding(
+                        '7718_QNT_03',
+                        '禁用表述：" ' + expr + ' "',
+                        `配料表或声称中使用了"${expr}"等禁用表述。GB 7718-2025 4.4.2.2明确禁止"不添加/不使用"及所有同义表述`,
+                        'danger',
+                        '事实',
+                        'GB 7718-2025 4.4.2.2',
+                        `不能使用"${expr}"等表述。如产品不含某物质，可使用"无..."表述，但需确保含量为0`
+                    ));
+                }
+            });
+
+            return findings;
+        }
+
+        // Allergen checks
+        function checkAllergens(ingredients) {
+            const findings = [];
+
+            if (!ingredients) return findings;
+
+            const allergenGroups = {
+                '小麦': ALLERGENS.gluten,
+                '甲壳类': ALLERGENS.crustacean,
+                '鱼': ALLERGENS.fish,
+                '蛋': ALLERGENS.egg,
+                '花生': ALLERGENS.peanut,
+                '大豆': ALLERGENS.soy,
+                '乳制品': ALLERGENS.dairy,
+                '坚果': ALLERGENS.treenut
+            };
+
+            for (const [group, keywords] of Object.entries(allergenGroups)) {
+                const found = keywords.some(keyword => ingredients.includes(keyword));
+                const isExempted = ALLERGEN_EXEMPTIONS.some(exemption => ingredients.includes(exemption));
+
+                if (found && !isExempted) {
+                    findings.push(new ReviewFinding(
+                        '7718_ALG_01',
+                        `检测到八大过敏原：${group}`,
+                        `配料表中检测到${group}相关原料，需确保在标签上清晰标示`,
+                        'info',
+                        '事实',
+                        'GB 7718-2025 4.12（附录D）',
+                        `在配料表中清晰标示${group}，建议在包装正面突出提示过敏原信息`
+                    ));
+                }
+            }
+
+            return findings;
+        }
+
+        // Nutrition table checks
+        function checkNutritionTable(nutritionTable) {
+            const findings = [];
+
+            if (!nutritionTable || nutritionTable.trim().length === 0) {
+                findings.push(new ReviewFinding(
+                    '28050_MAN_01',
+                    '营养成分表缺失',
+                    '未提供营养成分表',
+                    'danger',
+                    '事实',
+                    'GB 28050-2025 4.1',
+                    '必须提供营养成分表，至少包含能量、蛋白质、脂肪、饱和脂肪、碳水化合物、糖、钠'
+                ));
+                return findings;
+            }
+
+            const required = ['能量', '蛋白质', '脂肪', '饱和脂肪', '碳水化合物', '糖', '钠'];
+            const missing = required.filter(item => !nutritionTable.includes(item));
+
+            if (missing.length > 0) {
+                findings.push(new ReviewFinding(
+                    '28050_MAN_01',
+                    '营养成分表不完整',
+                    `缺少必需项目：${missing.join('、')}`,
+                    'danger',
+                    '事实',
+                    'GB 28050-2025 4.1',
+                    `营养成分表必须包含：${required.join('、')}`
+                ));
+            }
+
+            if (!nutritionTable.includes('儿童青少年应避免过量摄入盐油糖')) {
+                findings.push(new ReviewFinding(
+                    '28050_MAN_02',
+                    '缺少儿童警示语',
+                    '营养成分表下方应包含"儿童青少年应避免过量摄入盐油糖"',
+                    'warning',
+                    '事实',
+                    'GB 28050-2025 4.1',
+                    '在营养成分表下方添加提示语：儿童青少年应避免过量摄入盐油糖'
+                ));
+            }
+
+            // Check for hydrogenated oils
+            if (/(氢化|部分氢化|人造奶油|植物奶油|起酥油|代可可脂)/.test(nutritionTable) ||
+                /反式脂肪酸/.test(nutritionTable)) {
+                if (!nutritionTable.includes('反式脂肪酸')) {
+                    findings.push(new ReviewFinding(
+                        '28050_MAN_03',
+                        '需标示反式脂肪酸',
+                        '产品使用了氢化油或其替代品，必须标示反式脂肪酸含量',
+                        'warning',
+                        '规则判断',
+                        'GB 28050-2025 4.1',
+                        '在营养成分表中添加反式脂肪酸含量'
+                    ));
+                }
+            }
+
+            return findings;
+        }
+
+        // Front claims check
+        function checkFrontClaims(claims) {
+            const findings = [];
+
+            if (!claims) return findings;
+
+            // Check for banned expressions
+            BANNED_EXPRESSIONS.forEach(expr => {
+                if (new RegExp(expr).test(claims)) {
+                    findings.push(new ReviewFinding(
+                        '7718_QNT_03',
+                        '正面声称中禁用表述',
+                        `产品声称使用了"${expr}"，这是被GB 7718-2025明确禁止的表述`,
+                        'danger',
+                        '事实',
+                        'GB 7718-2025 4.4.2.2',
+                        `不能使用"${expr}"。如确实不含某物质，用"无XX"表示（需真实为0）`
+                    ));
+                }
+            });
+
+            // Check for absolute claims
+            if (/(最|第一|唯一|最佳|最好)/.test(claims)) {
+                findings.push(new ReviewFinding(
+                    '28050_CLM',
+                    '检测到绝对化表述',
+                    `声称中出现了"${claims.match(/(最|第一|唯一|最佳|最好)/)[0]}"等绝对化表述`,
+                    'warning',
+                    '规则判断',
+                    'GB 28050-2025',
+                    '避免使用"最""第一""唯一"等绝对化表述，应使用相对、可验证的表述'
+                ));
+            }
+
+            return findings;
+        }
+
+        // ==================== Packaging Review Engine ====================
+        function checkPackagingInfo(data) {
+            const findings = [];
+
+            // Check net content
+            if (!data.netContent) {
+                findings.push(new ReviewFinding(
+                    'PKG_001',
+                    '净含量缺失',
+                    '未提供净含量标示',
+                    'danger',
+                    '事实',
+                    'GB 7718-2025 4.5',
+                    '必须清晰标示净含量，并与产品名称在同一展示版面'
+                ));
+            }
+
+            // Check if net content on same surface
+            if (data.contentOnSameSurface === 'no') {
+                findings.push(new ReviewFinding(
+                    'PKG_002',
+                    '净含量与品名不在同一版面',
+                    '净含量应与食品名称在包装的同一展示版面',
+                    'warning',
+                    '规则判断',
+                    'GB 7718-2025 4.5',
+                    '将净含量标示与产品名称调整到同一展示版面'
+                ));
+            }
+
+            // Check production date format
+            if (data.productionDateFormat && !/^\d{4}[-年]\d{1,2}[-月]\d{1,2}日?|\d{8}$/.test(data.productionDateFormat)) {
+                findings.push(new ReviewFinding(
+                    'PKG_003',
+                    '生产日期格式不规范',
+                    '生产日期应使用"年月日"格式（如2026年3月18日）或YYYYMMDD格式',
+                    'warning',
+                    '事实',
+                    'GB 7718-2025 4.7',
+                    '调整为规范的日期格式，如"2026年3月18日"或"20260318"'
+                ));
+            }
+
+            // Check storage conditions
+            if (!data.storageConditions) {
+                findings.push(new ReviewFinding(
+                    'PKG_004',
+                    '贮存条件缺失',
+                    '未提供贮存条件说明',
+                    'warning',
+                    '事实',
+                    'GB 7718-2025 4.8',
+                    '必须清晰标示贮存条件（如常温保存、冷藏4℃等）'
+                ));
+            }
+
+            // Check SC number format
+            if (data.scNumber) {
+                if (!/^SC\d{14}$/.test(data.scNumber)) {
+                    findings.push(new ReviewFinding(
+                        'PKG_005',
+                        'SC编号格式错误',
+                        'SC编号应为SC开头+14位数字，共16位',
+                        'danger',
+                        '事实',
+                        'GB 7718-2025 4.9',
+                        '检查并修正SC编号格式，应为"SC"+"14位数字"'
+                    ));
+                }
+            } else {
+                findings.push(new ReviewFinding(
+                    'PKG_006',
+                    'SC编号缺失',
+                    '未提供食品生产许可证编号',
+                    'danger',
+                    '事实',
+                    'GB 7718-2025 4.9',
+                    '必须标示有效的食品生产许可证编号'
+                ));
+            }
+
+            // Check standard code
+            if (!data.standardCode) {
+                findings.push(new ReviewFinding(
+                    'PKG_007',
+                    '产品标准代号缺失',
+                    '未提供产品执行标准代号',
+                    'warning',
+                    '事实',
+                    'GB 7718-2025 4.10',
+                    '必须标示产品执行的标准代号（如GB/T 25000-2012）'
+                ));
+            }
+
+            // Check producer info
+            if (!data.producerName) {
+                findings.push(new ReviewFinding(
+                    'PKG_008',
+                    '生产者名称缺失',
+                    '未提供生产者名称',
+                    'danger',
+                    '事实',
+                    'GB 7718-2025 4.6',
+                    '必须标示生产者名称'
+                ));
+            }
+
+            if (!data.producerAddress) {
+                findings.push(new ReviewFinding(
+                    'PKG_009',
+                    '生产者地址缺失',
+                    '未提供生产者地址',
+                    'danger',
+                    '事实',
+                    'GB 7718-2025 4.6',
+                    '必须标示生产者地址'
+                ));
+            }
+
+            // Small package exemptions check
+            if (data.maxSurfaceArea && parseInt(data.maxSurfaceArea) <= 20) {
+                findings.push(new ReviewFinding(
+                    'PKG_010',
+                    '小包装豁免提示',
+                    '包装表面积≤20cm²，可不标示某些信息，但品名、净含量、保质期到期日、贮存条件、生产者名称+联系方式、SC、标准代号必须保留',
+                    'info',
+                    '规则判断',
+                    'GB 7718-2025 10.3',
+                    '若包装确实太小，按小包装豁免要求简化，但保留上述必要信息'
+                ));
+            }
+
+            // Large package nutrition label check
+            if (data.maxSurfaceArea && parseInt(data.maxSurfaceArea) <= 40) {
+                findings.push(new ReviewFinding(
+                    'PKG_011',
+                    '超小包装营养标签豁免',
+                    '包装表面积≤40cm²，营养标签可使用文字形式而不必使用表格',
+                    'info',
+                    '规则判断',
+                    'GB 28050-2025',
+                    '若采用文字形式标示营养信息，确保清晰易读'
+                ));
+            }
+
+            return findings;
+        }
+
+        // ==================== Main Review Functions ====================
+        function reviewLabel() {
+            const productName = document.getElementById('productName').value;
+            const ingredients = document.getElementById('ingredients').value;
+            const nutritionTable = document.getElementById('nutritionTable').value;
+            const frontClaims = document.getElementById('frontClaims').value;
+            const detailCopy = document.getElementById('detailCopy').value;
+            const selectedStandards = Array.from(document.querySelectorAll('input[name="standards"]:checked')).map(el => el.value);
+            const outputFormat = document.querySelector('input[name="outputFormat"]:checked').value;
+
+            const preScanMode = selectedStandards.length === 0;
+            document.getElementById('preScanBanner').classList.toggle('show', preScanMode);
+
+            let findings = [];
+
+            // Text quality
+            const allText = productName + ingredients + nutritionTable + frontClaims + detailCopy;
+            findings.push(...checkTextQuality(allText));
+
+            // Name checks
+            findings.push(...checkProductName(productName, ingredients));
+
+            // Ingredient checks
+            findings.push(...checkIngredients(ingredients));
+
+            // Allergen checks
+            findings.push(...checkAllergens(ingredients));
+
+            // Nutrition table checks
+            if (selectedStandards.includes('GB28050')) {
+                findings.push(...checkNutritionTable(nutritionTable));
+            }
+
+            // Front claims check
+            findings.push(...checkFrontClaims(frontClaims));
+
+            // Validation
+            const validation = [];
+            if (!productName.trim()) validation.push('品名');
+            if (!ingredients.trim()) validation.push('配料表');
+            if (!nutritionTable.trim()) validation.push('营养成分表');
+
+            if (validation.length > 0) {
+                findings.unshift(new ReviewFinding(
+                    'VALIDATE',
+                    '必填项不完整',
+                    `缺少以下必填项：${validation.join('、')}`,
+                    'danger',
+                    '事实',
+                    '-',
+                    '请完整填写所有必填项'
+                ));
+            }
+
+            displayFindings(findings, outputFormat, preScanMode);
+            scrollToResults();
+        }
+
+        function reviewPackaging() {
+            const data = {
+                productName: document.getElementById('pkgProductName').value,
+                pkgType: document.getElementById('pkgType').value,
+                netContent: document.getElementById('netContent').value,
+                productionDateFormat: document.getElementById('productionDateFormat').value,
+                shelfLife: document.getElementById('shelfLife').value,
+                storageConditions: document.getElementById('storageConditions').value,
+                producerName: document.getElementById('producerName').value,
+                producerAddress: document.getElementById('producerAddress').value,
+                contactInfo: document.getElementById('contactInfo').value,
+                scNumber: document.getElementById('scNumber').value,
+                standardCode: document.getElementById('standardCode').value,
+                contentOnSameSurface: document.querySelector('input[name="contentOnSameSurface"]:checked')?.value,
+                maxSurfaceArea: document.getElementById('maxSurfaceArea').value
+            };
+
+            let findings = checkPackagingInfo(data);
+
+            const validation = [];
+            if (!data.productName.trim()) validation.push('产品名称');
+            if (!data.pkgType) validation.push('包装类型');
+            if (!data.producerName) validation.push('生产者名称');
+            if (!data.scNumber) validation.push('SC编号');
+
+            if (validation.length > 0) {
+                findings.unshift(new ReviewFinding(
+                    'VALIDATE',
+                    '必填项不完整',
+                    `缺少以下必填项：${validation.join('、')}`,
+                    'danger',
+                    '事实',
+                    '-',
+                    '请完整填写所有必填项'
+                ));
+            }
+
+            displayFindings(findings, 'professional', false);
+            scrollToResults();
+        }
+
+        function displayFindings(findings, outputFormat, preScanMode) {
+            document.getElementById('results').style.display = 'flex';
+
+            // Calculate stats
+            const stats = {
+                danger: findings.filter(f => f.riskLevel === 'danger').length,
+                warning: findings.filter(f => f.riskLevel === 'warning').length,
+                success: findings.filter(f => f.riskLevel === 'success').length,
+                info: findings.filter(f => f.riskLevel === 'info').length,
+                total: findings.length
+            };
+
+            // Display summary
+            const summaryHtml = `
+                <div class="stat-card">
+                    <div class="stat-number" style="color: #dc2626;">${stats.danger}</div>
+                    <div class="stat-label">高风险</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" style="color: #ea580c;">${stats.warning}</div>
+                    <div class="stat-label">中风险</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" style="color: #16a34a;">${stats.success}</div>
+                    <div class="stat-label">低风险</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" style="color: #0891b2;">${stats.info}</div>
+                    <div class="stat-label">提示</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" style="color: #2563eb;">${stats.total}</div>
+                    <div class="stat-label">总计</div>
+                </div>
+            `;
+            document.getElementById('summaryStats').innerHTML = summaryHtml;
+
+            // Display findings
+            const findingsHtml = findings.map(f => `
+                <div class="finding-card ${f.riskLevel}">
+                    <div class="finding-header">
+                        <span class="badge badge-${f.riskLevel}">
+                            ${f.riskLevel === 'danger' ? '高风险' : f.riskLevel === 'warning' ? '中风险' : f.riskLevel === 'success' ? '低风险' : '提示'}
+                        </span>
+                        <span class="badge badge-secondary">${f.certainty}</span>
+                        <span class="badge badge-secondary">${f.ruleId}</span>
+                    </div>
+                    <div class="finding-content">
+                        <div class="finding-title">${f.title}</div>
+                        <div class="finding-description">${f.description}</div>
+                        <div class="finding-meta">
+                            <div class="finding-meta-item"><strong>标准：</strong>${f.standard}</div>
+                        </div>
+                        <div class="finding-suggestion">💡 ${f.suggestion}</div>
+                    </div>
+                </div>
+            `).join('');
+
+            if (findings.length === 0) {
+                document.getElementById('findings').innerHTML = '<div class="empty-state"><div class="empty-state-icon">✅</div><p>暂无检查项目或所有项目合规</p></div>';
+            } else {
+                document.getElementById('findings').innerHTML = findingsHtml;
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('食品标签包装审核助手 v2.0 已加载');
+        });
+    </script>
+</body>
+</html>
